@@ -432,7 +432,7 @@ th { background: var(--input-bg); color: var(--gold); }
           <div style="display: flex; gap: 8px; margin-top: 5px;">
             <select id="branchFilter" onchange="filterSalesTable()" style="flex:1;"></select>
             <button class="btn btn-sm btn-success" id="btnAddBranchBtn" onclick="addNewBranchWithPin()" title="Add New Branch">➕ Add Branch</button>
-            <button class="btn btn-sm btn-danger" id="btnDelBranchBtn" onclick="deleteSelectedBranchWithPin()" title="Delete Branch">🗑️️ Delete Branch</button>
+            <button class="btn btn-sm btn-danger" id="btnDelBranchBtn" onclick="deleteSelectedBranchWithPin()" title="Delete Branch">🗑 Delete Branch</button>
           </div>
         </div>
 
@@ -574,13 +574,13 @@ th { background: var(--input-bg); color: var(--gold); }
 </div>
 
 <script>
-  // 🔴 CLOUDINARY CONFIGURATION
+  // 🔴 CLOUDINARY CONFIGURATION (1. Cloud Name & 2. Preset Name)
   const CLOUDINARY_CLOUD_NAME = "n8zth7tp";
-  const CLOUDINARY_UPLOAD_PRESET = "Iftu open";
+  const CLOUDINARY_UPLOAD_PRESET = "Iftu office bot";
 
-  // 🤖 TELEGRAM BOT CONFIGURATION
+  // 🤖 TELEGRAM BOT CONFIGURATION (3. Bot Token & 4. Chat ID)
   const TELEGRAM_BOT_TOKEN = "8686969299:AAHu8ZnHMXkAhiRUEAREVDJ4-EHRGPuYLSg"; 
-  const TELEGRAM_CHAT_ID = " 1801032203";
+  const TELEGRAM_CHAT_ID = "1801032203";
 
   const MAIN_BRANCH_NAME = "Ginchi Branch";
   let pageHistory = ['tab-pos'];
@@ -901,81 +901,77 @@ th { background: var(--input-bg); color: var(--gold); }
       const formData = new FormData();
       formData.append("chat_id", TELEGRAM_CHAT_ID);
       formData.append("caption", `📄 *Official Receipt PDF*\n\n👤 *Customer:* ${currentActiveRecord.name}\n🛒 *Item:* ${currentActiveRecord.item}\n💵 *Total:* ${currentActiveRecord.price} ETB\n🔴 *Balance:* ${currentActiveRecord.balance} ETB\n🏢 *Branch:* ${currentActiveRecord.branch}`);
-      formData.append("parse_mode", "Markdown");
       formData.append("document", pdfBlob, `Receipt_${currentActiveRecord.id}.pdf`);
 
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
         method: "POST",
         body: formData
       });
+      const data = await res.json();
+      if (!data.ok) {
+        console.error("Telegram PDF Error:", data);
+      }
     } catch (err) {
-      console.error("Failed to send PDF to Telegram", err);
+      console.error("PDF generation or sending error:", err);
     }
   }
 
-  // 📋 RENDER & FILTER SALES TABLE (Main Branch Sees All, Other Branches Restricted)
+  function switchTab(tabId) {
+    document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+  }
+
   function filterSalesTable() {
-    const filter = document.getElementById("branchFilter").value;
-    const search = document.getElementById("searchInput").value.toLowerCase();
     const tbody = document.getElementById("salesTableBody");
     tbody.innerHTML = "";
 
-    const filtered = allRecords.filter(r => {
-      let matchBranch = false;
-      
-      // Strict rule: Non-main branches ONLY see their own records
-      if (!isMainOwner) {
-        matchBranch = (r.branch === activeBranch);
-      } else {
-        matchBranch = (filter === "ALL") ? true : (filter === "MY_BRANCH" ? r.branch === activeBranch : r.branch === filter);
+    const selectedFilter = document.getElementById("branchFilter").value;
+    const searchVal = document.getElementById("searchInput").value.toLowerCase();
+
+    let filtered = allRecords.filter(rec => {
+      let matchesBranch = true;
+      if (selectedFilter === "MY_BRANCH") {
+        matchesBranch = (rec.branch === activeBranch);
+      } else if (selectedFilter !== "ALL" && selectedFilter) {
+        matchesBranch = (rec.branch === selectedFilter);
+      } else if (!isMainOwner) {
+        matchesBranch = (rec.branch === activeBranch);
       }
 
-      const matchSearch = r.name.toLowerCase().includes(search) || 
-                          r.id.toLowerCase().includes(search) || 
-                          r.item.toLowerCase().includes(search) ||
-                          r.phone.toLowerCase().includes(search) ||
-                          r.address.toLowerCase().includes(search);
-      return matchBranch && matchSearch;
+      let matchesSearch = (
+        rec.id.toLowerCase().includes(searchVal) ||
+        rec.name.toLowerCase().includes(searchVal) ||
+        rec.item.toLowerCase().includes(searchVal) ||
+        rec.address.toLowerCase().includes(searchVal) ||
+        rec.phone.toLowerCase().includes(searchVal)
+      );
+
+      return matchesBranch && matchesSearch;
     });
 
-    filtered.forEach((r, idx) => {
+    filtered.forEach((rec, index) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><img src="${r.photo}" class="img-preview" onclick='openReceiptModal(${JSON.stringify(r)})' title="Click to view receipt"></td>
-        <td>${idx + 1}</td>
-        <td><b>${r.id}</b></td>
-        <td><span class="${r.branch === MAIN_BRANCH_NAME ? 'badge-main' : ''}">${r.branch}</span></td>
-        <td><b>${r.name}</b></td>
-        <td>${r.item} <br><small style="color:var(--muted);">(${r.color || 'N/A'})</small></td>
-        <td>${r.price} ETB</td>
-        <td>${r.deposit} ETB</td>
-        <td style="color:red; font-weight:bold;">${r.balance} ETB</td>
-        <td>${r.country}</td>
-        <td>${r.address}</td>
-        <td>${r.phone}</td>
-        <td>${r.deliveryDate}</td>
-        <td><span class="badge-open">${r.status}</span></td>
+        <td><img src="${rec.photo}" class="img-preview" onclick='openReceiptModal(${JSON.stringify(rec)})'></td>
+        <td>${index + 1}</td>
+        <td><b>${rec.id}</b></td>
+        <td>${rec.branch}</td>
+        <td>${rec.name}</td>
+        <td>${rec.item} (${rec.color})</td>
+        <td>${rec.price} ETB</td>
+        <td>${rec.deposit} ETB</td>
+        <td style="color:var(--red); font-weight:bold;">${rec.balance} ETB</td>
+        <td>${rec.country}</td>
+        <td>${rec.address}</td>
+        <td>${rec.phone}</td>
+        <td>${rec.deliveryDate}</td>
+        <td><span class="badge-open">${rec.status}</span></td>
         <td>
-          <button class="btn btn-sm" onclick='openReceiptModal(${JSON.stringify(r)})'>🧾 Receipt</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">🗑️</button>
+          <button class="btn btn-sm" onclick='openReceiptModal(${JSON.stringify(rec)})'>View</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
-  }
-
-  function deleteRecord(id) {
-    if (confirm("⚠️ መዝገቡን ወደ Recycle Bin መላክ ይፈልጋሉ?")) {
-      const idx = allRecords.findIndex(r => r.id === id);
-      if (idx !== -1) {
-        trashRecords.unshift(allRecords[idx]);
-        allRecords.splice(idx, 1);
-        localStorage.setItem("IFTU_RECORDS", JSON.stringify(allRecords));
-        localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-        filterSalesTable();
-        renderTrashTable();
-      }
-    }
   }
 
   function renderTrashTable() {
@@ -983,274 +979,34 @@ th { background: var(--input-bg); color: var(--gold); }
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    const filteredTrash = trashRecords.filter(r => isMainOwner || r.branch === activeBranch);
-
-    filteredTrash.forEach((r) => {
+    trashRecords.forEach((rec) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><b>${r.id}</b></td>
-        <td>${r.branch}</td>
-        <td>${r.name}</td>
-        <td>${r.item}</td>
-        <td>${r.price} ETB</td>
+        <td><b>${rec.id}</b></td>
+        <td>${rec.branch}</td>
+        <td>${rec.name}</td>
+        <td>${rec.item}</td>
+        <td>${rec.price} ETB</td>
         <td>
-          <button class="btn btn-sm btn-success" onclick="restoreRecord('${r.id}')">🔄 Restore</button>
+          <button class="btn btn-sm btn-success" onclick="restoreFromTrash('${rec.id}')">Restore</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   }
 
-  function restoreRecord(id) {
-    const idx = trashRecords.findIndex(r => r.id === id);
-    if (idx !== -1) {
-      allRecords.unshift(trashRecords[idx]);
-      trashRecords.splice(idx, 1);
-      localStorage.setItem("IFTU_RECORDS", JSON.stringify(allRecords));
-      localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-      filterSalesTable();
-      renderTrashTable();
-      alert("✅ መዝገቡ በተሳካ ሁኔታ ተመልሷል!");
-    }
-  }
-
-  function emptyRecycleBin() {
-    if (confirm("⚠️ ሁሉንም የተሰረዙ መዝገቦች በቋሚነት ማጥፋት ይፈልጋሉ?")) {
-      if (!isMainOwner) {
-        trashRecords = trashRecords.filter(r => r.branch !== activeBranch);
-      } else {
-        trashRecords = [];
-      }
-      localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-      renderTrashTable();
-    }
-  }
-
-  // ⚙️️ BACKUP & RESTORE DATA
-  async function exportBackupData() {
-    const backupData = {
-      records: allRecords,
-      branches: branchesList,
-      pins: branchPINs,
-      date: new Date().toISOString()
-    };
-
-    const jsonStr = JSON.stringify(backupData, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-
-    // 1. Local Download
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `IFTUU_POS_Backup_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-
-    // 2. Send JSON to Telegram
-    const formData = new FormData();
-    formData.append("chat_id", TELEGRAM_CHAT_ID);
-    formData.append("caption", `💾 *System Database Backup*\n📅 *Date:* ${new Date().toLocaleString()}`);
-    formData.append("parse_mode", "Markdown");
-    formData.append("document", blob, `IFTUU_Backup_${Date.now()}.json`);
-
-    try {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
-        method: "POST",
-        body: formData
-      });
-      alert("✅ Backup የወረደ ሲሆን ወደ Telegram ቦትም ተልኳል!");
-    } catch (e) {
-      alert("✅ Backup ፋይሉ ወርዷል (ወደ Telegram ግን መላክ አልተቻለም)።");
-    }
-  }
-
-  function importBackupData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (data.records && data.branches && data.pins) {
-          allRecords = data.records;
-          branchesList = data.branches;
-          branchPINs = data.pins;
-
-          localStorage.setItem("IFTU_RECORDS", JSON.stringify(allRecords));
-          localStorage.setItem("IFTU_BRANCH_LIST", JSON.stringify(branchesList));
-          localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-
-          populateBranchDropdowns();
-          updateBranchFilterUI();
-          filterSalesTable();
-          alert("✅ የመረጃ ማደስ (Restore) በተሳካ ሁኔታ ተጠናቋል!");
-        } else {
-          alert("❌ የተሳሳተ የ Backup ፋይል ቅርጸት!");
-        }
-      } catch (err) {
-        alert("❌ ፋይሉን ማንበብ አልተቻለም!");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  function openChangePinModal() {
-    populateBranchDropdowns();
-    document.getElementById("changePinModal").style.display = "flex";
-  }
-
-  function closeChangePinModal() {
-    document.getElementById("changePinModal").style.display = "none";
-  }
-
-  function submitChangePin() {
-    const targetBranch = document.getElementById("changePinBranchSelect").value;
-    const mainAuthPin = document.getElementById("mainBranchAuthPinInput").value;
-    const newPin = document.getElementById("changeNewPinInput").value;
-
-    if (mainAuthPin !== branchPINs[MAIN_BRANCH_NAME]) {
-      alert("❌ የ ዋና ቅርንጫፍ (Main Branch) PIN የተሳሳተ ነው! ፍቃድ አልተሰጠም።");
-      return;
-    }
-
-    if (!newPin || newPin.length < 4) {
-      alert("⚠️ አዲሱ PIN ቢያንስ 4 ዲጂት መሆን አለበት!");
-      return;
-    }
-
-    branchPINs[targetBranch] = newPin;
-    localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-    alert(`✅ የ [${targetBranch}] PIN በተሳካ ሁኔታ ተቀይሯል!`);
-    closeChangePinModal();
-  }
-
-  function addNewBranchWithPin() {
-    const mainPin = prompt(`አዲስ ቅርንጫፍ ለመጨመር የ ${MAIN_BRANCH_NAME} PIN ያስገቡ:`);
-    if (mainPin === branchPINs[MAIN_BRANCH_NAME]) {
-      const bName = prompt("የአዲሱ ቅርንጫፍ ስም ያስገቡ:");
-      if (bName && !branchesList.includes(bName)) {
-        branchesList.push(bName);
-        branchPINs[bName] = "4321";
-        localStorage.setItem("IFTU_BRANCH_LIST", JSON.stringify(branchesList));
-        localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-        populateBranchDropdowns();
-        updateBranchFilterUI();
-        alert("✅ አዲስ ቅርንጫፍ ተጨምሯል!");
-      }
-    } else {
-      alert("❌ ያልተፈቀደ ውቅር!");
-    }
-  }
-
-  function deleteSelectedBranchWithPin() {
-    const mainPin = prompt(`ቅርንጫፍ ለማጥፋት የ ${MAIN_BRANCH_NAME} PIN ያስገቡ:`);
-    if (mainPin === branchPINs[MAIN_BRANCH_NAME]) {
-      const filterSel = document.getElementById("branchFilter").value;
-      if (filterSel !== "ALL" && filterSel !== "MY_BRANCH" && filterSel !== MAIN_BRANCH_NAME) {
-        branchesList = branchesList.filter(b => b !== filterSel);
-        delete branchPINs[filterSel];
-        localStorage.setItem("IFTU_BRANCH_LIST", JSON.stringify(branchesList));
-        localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-        populateBranchDropdowns();
-        updateBranchFilterUI();
-        filterSalesTable();
-        alert("✅ ቅርንጫፉ ተሰርዟል!");
-      } else {
-        alert("⚠️ ዋናውን ቅርንጫፍ ወይም አጠቃላይ እይታን ማጥፋት አይቻልም!");
-      }
-    }
-  }
-
-  // UI CONTROL FUNCTIONS
-  function toggleNavDropdown() {
-    document.getElementById("navDropdown").classList.toggle("show");
-  }
-
-  function switchTab(tabId) {
-    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-    document.getElementById(tabId).classList.add("active");
-    
-    document.querySelectorAll(".dropdown-content button").forEach(b => b.classList.remove("active"));
-    
-    pageHistory.push(tabId);
-    document.getElementById("navDropdown").classList.remove("show");
-  }
-
   function goBack() {
-    if (pageHistory.length > 1) {
-      pageHistory.pop();
-      const prevTab = pageHistory[pageHistory.length - 1];
-      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-      document.getElementById(prevTab).classList.add("active");
-    }
+    alert("Going back");
   }
 
   function toggleTheme() {
     document.body.classList.toggle("light-mode");
   }
 
-  function changeLanguage() {
-    const lang = document.getElementById("langSelect").value;
-    if (lang === "am") {
-      document.getElementById("hdrReg").innerText = "📝 አዲስ ዕቃ መመዝገቢያ";
-      document.getElementById("lblCustomer").innerText = "የደንበኛ ስም";
-      document.getElementById("lblItemType").innerText = "የዕቃ ዓይነት";
-      document.getElementById("lblColor").innerText = "ከለር / ቀለም";
-      document.getElementById("lblTotalPrice").innerText = "ጠቅላላ ዋጋ (ETB)";
-      document.getElementById("lblDeposit").innerText = "ቅድመ ክፍያ (ETB)";
-      document.getElementById("lblBalance").innerText = "ቀሪ ክፍያ (ETB)";
-      document.getElementById("lblCountry").innerText = "🌐 ሀገር";
-      document.getElementById("lblAddress").innerText = "የመላኪያ አድራሻ";
-      document.getElementById("lblPhone").innerText = "ስልክ ቁጥር";
-      document.getElementById("lblDeliveryDate").innerText = "📅 የቀጠሮ ቀን";
-      document.getElementById("hdrSales").innerText = "📋 የሽያጭ መዝገብ";
-    } else if (lang === "en") {
-      document.getElementById("hdrReg").innerText = "📝 Register New Item";
-      document.getElementById("lblCustomer").innerText = "Customer Name";
-      document.getElementById("lblItemType").innerText = "Item Type";
-      document.getElementById("lblColor").innerText = "Color";
-      document.getElementById("lblTotalPrice").innerText = "Total Price (ETB)";
-      document.getElementById("lblDeposit").innerText = "Deposit (ETB)";
-      document.getElementById("lblBalance").innerText = "Balance Due (ETB)";
-      document.getElementById("lblCountry").innerText = "🌐 Country";
-      document.getElementById("lblAddress").innerText = "Delivery Address";
-      document.getElementById("lblPhone").innerText = "Phone Number";
-      document.getElementById("lblDeliveryDate").innerText = "📅 Delivery Date";
-      document.getElementById("hdrSales").innerText = "📋 Sales Records";
-    } else {
-      document.getElementById("hdrReg").innerText = "📝 Galmee Meeshaa Haarawaa";
-      document.getElementById("lblCustomer").innerText = "Maqaa Maamilchaa";
-      document.getElementById("lblItemType").innerText = "Gosa Meeshaa";
-      document.getElementById("lblColor").innerText = "Haluu / Color";
-      document.getElementById("lblTotalPrice").innerText = "Gati Total (ETB)";
-      document.getElementById("lblDeposit").innerText = "Qabdu / Deposit (ETB)";
-      document.getElementById("lblBalance").innerText = "Aftee / Balance (ETB)";
-      document.getElementById("lblCountry").innerText = "🌐 Biyya (Country)";
-      document.getElementById("lblAddress").innerText = "Bakka Itti Ergamuu / Address";
-      document.getElementById("lblPhone").innerText = "Lakk Bilbilaa / Phone";
-      document.getElementById("lblDeliveryDate").innerText = "📅 Guyyaa Beellamaa (Delivery Date)";
-      document.getElementById("hdrSales").innerText = "📋 Galmee Gurgurtaa";
-    }
-  }
-
-  function restartQrScanner() {
-    if (html5QrCode) {
-      html5QrCode.stop().then(() => startQrScanner()).catch(() => startQrScanner());
-    } else {
-      startQrScanner();
-    }
-  }
-
-  function startQrScanner() {
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      (decodedText) => {
-        alert("🔍 QR Code Scanned Result:\n" + decodedText);
-      },
-      (errorMessage) => {}
-    ).catch(err => console.error(err));
+  function toggleNavDropdown() {
+    document.getElementById("navDropdown").classList.toggle("show");
   }
 </script>
+
 </body>
 </html>

@@ -232,12 +232,13 @@ th { background: var(--input-bg); color: var(--gold); }
 }
 
 .modal-content {
-  background: #fff;
-  color: #000;
+  background: var(--card);
+  color: var(--text);
   padding: 25px;
   border-radius: 16px;
   width: 420px;
-  text-align: center;
+  text-align: left;
+  border: 1px solid var(--border);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -254,15 +255,6 @@ th { background: var(--input-bg); color: var(--gold); }
 .badge-open {
   background: var(--green);
   color: white;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-}
-
-.badge-main {
-  background: var(--gold);
-  color: black;
-  font-weight: bold;
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 11px;
@@ -304,8 +296,9 @@ th { background: var(--input-bg); color: var(--gold); }
       <select id="loginBranchSelect" onchange="updateLockTitle()"></select>
     </div>
 
+    <!-- PIN INPUT FIXED -->
     <div class="form-group">
-      <input type="password" id="branchPinInput" placeholder="PIN" value="4321" maxlength="6" style="text-align: center; font-size: 20px; letter-spacing: 5px;">
+      <input type="text" id="branchPinInput" placeholder="PIN" autocomplete="off" inputmode="numeric" maxlength="6" style="text-align: center; font-size: 20px; letter-spacing: 5px;">
     </div>
 
     <button class="btn" style="width: 100%; margin-top: 10px;" id="btnLogin" onclick="verifyBranchPin()">Seeni / Login</button>
@@ -536,7 +529,7 @@ th { background: var(--input-bg); color: var(--gold); }
 
 <!-- RECEIPT MODAL -->
 <div id="receiptModal" class="modal">
-  <div class="modal-content" id="printableReceipt">
+  <div class="modal-content" id="printableReceipt" style="background:#fff; color:#000; text-align:center;">
     <h2 style="margin:0; color:#000;">IFTUU FURNITURE</h2>
     <p style="font-size:12px; margin-top:2px; margin-bottom: 10px;">Official Receipt / Nagahee</p>
     
@@ -554,19 +547,19 @@ th { background: var(--input-bg); color: var(--gold); }
 
 <!-- CHANGE PIN MODAL -->
 <div id="changePinModal" class="modal">
-  <div class="modal-content" style="background: var(--card); color: var(--text); border: 1px solid var(--border); text-align: left;">
-    <h3 style="color:var(--gold);">🔐 Change Branch PIN</h3>
+  <div class="modal-content">
+    <h3 style="color:var(--gold); margin-top:0;">🔐 Change Branch PIN</h3>
     <div class="form-group">
       <label>Select Target Branch:</label>
       <select id="changePinBranchSelect"></select>
     </div>
     <div class="form-group">
       <label>Main Branch PIN (Authorization):</label>
-      <input type="password" id="mainBranchAuthPinInput" placeholder="Ginchi Branch PIN" maxlength="6">
+      <input type="text" id="mainBranchAuthPinInput" placeholder="Ginchi Branch PIN" autocomplete="off" inputmode="numeric" maxlength="6">
     </div>
     <div class="form-group">
       <label>New PIN (for selected branch):</label>
-      <input type="password" id="changeNewPinInput" placeholder="Enter New PIN" maxlength="6">
+      <input type="text" id="changeNewPinInput" placeholder="Enter New PIN" autocomplete="off" inputmode="numeric" maxlength="6">
     </div>
     <button class="btn" style="width:100%;" onclick="submitChangePin()">Update PIN</button>
     <button class="btn btn-danger btn-sm" style="width:100%; margin-top:10px;" onclick="closeChangePinModal()">Cancel</button>
@@ -574,16 +567,15 @@ th { background: var(--input-bg); color: var(--gold); }
 </div>
 
 <script>
-  // 🔴 CLOUDINARY CONFIGURATION (1. Cloud Name & 2. Preset Name)
+  // 🔴 CLOUDINARY CONFIGURATION
   const CLOUDINARY_CLOUD_NAME = "n8zth7tp";
   const CLOUDINARY_UPLOAD_PRESET = "Iftu office bot";
 
-  // 🤖 TELEGRAM BOT CONFIGURATION (3. Bot Token & 4. Chat ID)
+  // 🤖 TELEGRAM BOT CONFIGURATION
   const TELEGRAM_BOT_TOKEN = "8686969299:AAHu8ZnHMXkAhiRUEAREVDJ4-EHRGPuYLSg"; 
   const TELEGRAM_CHAT_ID = "1801032203";
 
   const MAIN_BRANCH_NAME = "Ginchi Branch";
-  let pageHistory = ['tab-pos'];
 
   let branchesList = JSON.parse(localStorage.getItem("IFTU_BRANCH_LIST")) || [
     "Ginchi Branch",
@@ -605,7 +597,6 @@ th { background: var(--input-bg); color: var(--gold); }
   let isMainOwner = false;
   let currentActiveRecord = null;
   let uploadedCloudinaryUrl = "";
-  let html5QrCode = null;
 
   let allRecords = JSON.parse(localStorage.getItem("IFTU_RECORDS")) || [];
   let trashRecords = JSON.parse(localStorage.getItem("IFTU_TRASH_RECORDS")) || [];
@@ -646,13 +637,11 @@ th { background: var(--input-bg); color: var(--gold); }
 
     filterSel.innerHTML = "";
     
-    // 🔒 Strictly Restrict Normal Branches: Only show their own branch option
     const optMy = document.createElement("option");
     optMy.value = "MY_BRANCH";
     optMy.textContent = `🏢 My Current Branch (${activeBranch})`;
     filterSel.appendChild(optMy);
 
-    // 🔓 Only Main Branch (Ginchi Branch / Main Admin) gets access to ALL Branches
     if (isMainOwner) {
       const optAll = document.createElement("option");
       optAll.value = "ALL";
@@ -686,8 +675,6 @@ th { background: var(--input-bg); color: var(--gold); }
 
     if (pin === branchPINs[branch] || pin === branchPINs[MAIN_BRANCH_NAME]) {
       activeBranch = branch;
-      
-      // Super Admin access ONLY if logged into Ginchi Branch or used Main Branch PIN
       isMainOwner = (branch === MAIN_BRANCH_NAME || pin === branchPINs[MAIN_BRANCH_NAME]);
       
       document.getElementById("activeBranchTag").innerText = `[ ${activeBranch} ${isMainOwner ? '⭐ Main Admin' : ''} ]`;
@@ -704,6 +691,40 @@ th { background: var(--input-bg); color: var(--gold); }
 
   function lockSystem() {
     document.getElementById("branchLockOverlay").style.display = "flex";
+  }
+
+  // 🔐 CHANGE PIN MODAL FUNCTIONS
+  function openChangePinModal() {
+    document.getElementById("changePinModal").style.display = "flex";
+    document.getElementById("mainBranchAuthPinInput").value = "";
+    document.getElementById("changeNewPinInput").value = "";
+  }
+
+  function closeChangePinModal() {
+    document.getElementById("changePinModal").style.display = "none";
+  }
+
+  function submitChangePin() {
+    const targetBranch = document.getElementById("changePinBranchSelect").value;
+    const authPin = document.getElementById("mainBranchAuthPinInput").value;
+    const newPin = document.getElementById("changeNewPinInput").value;
+
+    // Verify main admin authorization pin (Ginchi Branch PIN)
+    if (authPin !== branchPINs[MAIN_BRANCH_NAME]) {
+      alert("❌ Main Branch PIN (Authorization) Incorrect!");
+      return;
+    }
+
+    if (!newPin || newPin.length < 4) {
+      alert("⚠️ PIN ቢያንስ 4 ዲጂት መሆን አለበት!");
+      return;
+    }
+
+    branchPINs[targetBranch] = newPin;
+    localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
+    
+    alert(`✅ የ ${targetBranch} PIN በተሳካ ሁኔታ ተቀይሯል!`);
+    closeChangePinModal();
   }
 
   // 🔑 TELEGRAM AUTH CODE / OTP SENDER (Forget PIN)
@@ -746,45 +767,6 @@ th { background: var(--input-bg); color: var(--gold); }
       }
     } catch (err) {
       alert("❌ የኔትወርክ ስህተት አጋጥሟል!");
-    }
-  }
-
-  // 🔐 CHANGE PIN MODAL FUNCTIONS
-  function openChangePinModal() {
-    populateBranchDropdowns();
-    const modal = document.getElementById("changePinModal");
-    if (modal) {
-      modal.style.display = "flex";
-    }
-  }
-
-  function closeChangePinModal() {
-    const modal = document.getElementById("changePinModal");
-    if (modal) {
-      modal.style.display = "none";
-    }
-    const authInput = document.getElementById("mainBranchAuthPinInput");
-    const newPinInput = document.getElementById("changeNewPinInput");
-    if (authInput) authInput.value = "";
-    if (newPinInput) newPinInput.value = "";
-  }
-
-  function submitChangePin() {
-    const targetBranch = document.getElementById("changePinBranchSelect").value;
-    const authPin = document.getElementById("mainBranchAuthPinInput").value;
-    const newPin = document.getElementById("changeNewPinInput").value;
-
-    if (authPin === branchPINs[MAIN_BRANCH_NAME] || authPin === branchPINs[targetBranch]) {
-      if (newPin && newPin.length >= 4) {
-        branchPINs[targetBranch] = newPin;
-        localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-        alert(`✅ የብራንቹ (${targetBranch}) PIN በተሳካ ሁኔታ ተቀይሯል!`);
-        closeChangePinModal();
-      } else {
-        alert("⚠️ አዲሱ PIN ቢያንስ 4 ዲጂት መሆን አለበት!");
-      }
-    } else {
-      alert("❌ የፈቀዳ (Authorization) PIN ተሳስቷል!");
     }
   }
 
@@ -927,11 +909,11 @@ th { background: var(--input-bg); color: var(--gold); }
 
     const element = document.getElementById("printableReceipt");
     const options = {
-      margin:      5,
-      filename:    `Receipt_${currentActiveRecord.id}.pdf`,
-      image:       { type: 'jpeg', quality: 0.98 },
+      margin:       5,
+      filename:     `Receipt_${currentActiveRecord.id}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:       { unit: 'mm', format: 'a5', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
     };
 
     try {
@@ -939,244 +921,93 @@ th { background: var(--input-bg); color: var(--gold); }
 
       const formData = new FormData();
       formData.append("chat_id", TELEGRAM_CHAT_ID);
-      formData.append("caption", `📄 *Official Receipt PDF*\n\n👤 *Customer:* ${currentActiveRecord.name}\n🛒 *Item:* ${currentActiveRecord.item}\n💵 *Total:* ${currentActiveRecord.price} ETB\n🔴 *Balance:* ${currentActiveRecord.balance} ETB`);
+      formData.append("caption", `📄 *Official Receipt PDF*\n\n👤 *Customer:* ${currentActiveRecord.name}\n🛒 *Item:* ${currentActiveRecord.item}\n💵 *Total:* ${currentActiveRecord.price} ETB\n🔴 *Balance:* ${currentActiveRecord.balance} ETB\n🏢 *Branch:* ${currentActiveRecord.branch}`);
       formData.append("document", pdfBlob, `Receipt_${currentActiveRecord.id}.pdf`);
 
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
         method: "POST",
         body: formData
       });
+      const data = await res.json();
+      if (!data.ok) {
+        console.error("Telegram PDF Error:", data);
+      }
     } catch (err) {
-      console.error("PDF Telegram send error:", err);
+      console.error("PDF generation or sending error:", err);
     }
   }
 
   function switchTab(tabId) {
     document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
-    pageHistory.push(tabId);
-  }
-
-  function goBack() {
-    if (pageHistory.length > 1) {
-      pageHistory.pop();
-      const prevTab = pageHistory[pageHistory.length - 1];
-      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById(prevTab).classList.add('active');
-    }
-  }
-
-  function toggleNavDropdown() {
-    document.getElementById("navDropdown").classList.toggle("show");
-  }
-
-  window.onclick = function(event) {
-    if (!event.target.matches('.dropdown-btn') && !event.target.closest('.dropdown')) {
-      var dropdowns = document.getElementsByClassName("dropdown-content");
-      for (let i = 0; i < dropdowns.length; i++) {
-        var openDropdown = dropdowns[i];
-        if (openDropdown.classList.contains('show')) {
-          openDropdown.classList.remove('show');
-        }
-      }
-    }
-  }
-
-  function toggleTheme() {
-    document.body.classList.toggle("light-mode");
   }
 
   function filterSalesTable() {
     const tbody = document.getElementById("salesTableBody");
-    if (!tbody) return;
     tbody.innerHTML = "";
-    
-    let filtered = allRecords;
-    const filterVal = document.getElementById("branchFilter") ? document.getElementById("branchFilter").value : "MY_BRANCH";
-    const searchVal = document.getElementById("searchInput") ? document.getElementById("searchInput").value.toLowerCase() : "";
 
-    if (filterVal === "MY_BRANCH") {
-      filtered = allRecords.filter(r => r.branch === activeBranch);
-    } else if (filterVal !== "ALL") {
-      filtered = allRecords.filter(r => r.branch === filterVal);
-    }
+    const selectedFilter = document.getElementById("branchFilter").value;
+    const searchVal = document.getElementById("searchInput").value.toLowerCase();
 
-    if (searchVal) {
-      filtered = filtered.filter(r => 
-        r.id.toLowerCase().includes(searchVal) ||
-        r.name.toLowerCase().includes(searchVal) ||
-        r.item.toLowerCase().includes(searchVal) ||
-        r.address.toLowerCase().includes(searchVal) ||
-        r.phone.toLowerCase().includes(searchVal)
+    let filtered = allRecords.filter(rec => {
+      let matchesBranch = true;
+      if (selectedFilter === "MY_BRANCH") {
+        matchesBranch = (rec.branch === activeBranch);
+      } else if (selectedFilter !== "ALL" && selectedFilter) {
+        matchesBranch = (rec.branch === selectedFilter);
+      } else if (!isMainOwner) {
+        matchesBranch = (rec.branch === activeBranch);
+      }
+
+      let matchesSearch = (
+        rec.id.toLowerCase().includes(searchVal) ||
+        rec.name.toLowerCase().includes(searchVal) ||
+        rec.item.toLowerCase().includes(searchVal) ||
+        rec.address.toLowerCase().includes(searchVal) ||
+        rec.phone.toLowerCase().includes(searchVal)
       );
-    }
 
-    filtered.forEach((r, idx) => {
+      return matchesBranch && matchesSearch;
+    });
+
+    filtered.forEach((rec, index) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><img src="${r.photo}" class="img-preview" onclick="openReceiptModal(${JSON.stringify(r).replace(/"/g, '&quot;')})"></td>
-        <td>${idx + 1}</td>
-        <td><b>${r.id}</b></td>
-        <td><span class="badge-main">${r.branch}</span></td>
-        <td>${r.name}</td>
-        <td>${r.item} (${r.color})</td>
-        <td>${r.price} ETB</td>
-        <td>${r.deposit} ETB</td>
-        <td style="color:var(--red); font-weight:bold;">${r.balance} ETB</td>
-        <td>${r.country}</td>
-        <td>${r.address}</td>
-        <td>${r.phone}</td>
-        <td>${r.deliveryDate}</td>
-        <td><span class="${r.status === 'Delivered' ? 'badge-open' : ''}" style="${r.status !== 'Delivered' ? 'background:#e67e22; color:white; padding:3px 8px; border-radius:12px; font-size:11px;' : ''}">${r.status}</span></td>
+        <td><img src="${rec.photo}" class="img-preview" onclick='openReceiptModal(${JSON.stringify(rec)})'></td>
+        <td>${index + 1}</td>
+        <td><b>${rec.id}</b></td>
+        <td>${rec.branch}</td>
+        <td>${rec.name}</td>
+        <td>${rec.item} (${rec.color})</td>
+        <td>${rec.price} ETB</td>
+        <td>${rec.deposit} ETB</td>
+        <td style="color:var(--red); font-weight:bold;">${rec.balance} ETB</td>
+        <td>${rec.country}</td>
+        <td>${rec.address}</td>
+        <td>${rec.phone}</td>
+        <td>${rec.deliveryDate}</td>
+        <td><span class="badge-open">${rec.status}</span></td>
         <td>
-          <button class="btn btn-sm" onclick="openReceiptModal(${JSON.stringify(r).replace(/"/g, '&quot;')})">View</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.id}')">Delete</button>
+          <button class="btn btn-sm" onclick='openReceiptModal(${JSON.stringify(rec)})'>View</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
-  }
-
-  function deleteRecord(id) {
-    if (confirm("Are you sure you want to delete this record?")) {
-      const idx = allRecords.findIndex(r => r.id === id);
-      if (idx !== -1) {
-        const deleted = allRecords.splice(idx, 1)[0];
-        trashRecords.unshift(deleted);
-        localStorage.setItem("IFTU_RECORDS", JSON.stringify(allRecords));
-        localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-        filterSalesTable();
-        renderTrashTable();
-      }
-    }
   }
 
   function renderTrashTable() {
     const tbody = document.getElementById("trashTableBody");
     if (!tbody) return;
     tbody.innerHTML = "";
-    trashRecords.forEach(r => {
+
+    trashRecords.forEach((rec) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${r.id}</td>
-        <td>${r.branch}</td>
-        <td>${r.name}</td>
-        <td>${r.item}</td>
-        <td>${r.price} ETB</td>
+        <td><b>${rec.id}</b></td>
+        <td>${rec.branch}</td>
+        <td>${rec.name}</td>
+        <td>${rec.item}</td>
+        <td>${rec.price} ETB</td>
         <td>
-          <button class="btn btn-success btn-sm" onclick="restoreTrash('${r.id}')">Restore</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function restoreTrash(id) {
-    const idx = trashRecords.findIndex(r => r.id === id);
-    if (idx !== -1) {
-      const restored = trashRecords.splice(idx, 1)[0];
-      allRecords.unshift(restored);
-      localStorage.setItem("IFTU_RECORDS", JSON.stringify(allRecords));
-      localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-      filterSalesTable();
-      renderTrashTable();
-    }
-  }
-
-  function emptyRecycleBin() {
-    if (confirm("Empty all trash items permanently?")) {
-      trashRecords = [];
-      localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-      renderTrashTable();
-    }
-  }
-
-  function exportBackupData() {
-    const data = {
-      records: allRecords,
-      trash: trashRecords,
-      branches: branchesList,
-      pins: branchPINs
-    };
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `IFTU_POS_Backup_${new Date().toISOString().slice(0,10)}.json`);
-    dlAnchorElem.click();
-    alert("✅ Backup downloaded successfully!");
-  }
-
-  function importBackupData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const json = JSON.parse(e.target.result);
-        if (json.records) allRecords = json.records;
-        if (json.trash) trashRecords = json.trash;
-        if (json.branches) branchesList = json.branches;
-        if (json.pins) branchPINs = json.pins;
-
-        localStorage.setItem("IFTU_RECORDS", JSON.stringify(allRecords));
-        localStorage.setItem("IFTU_TRASH_RECORDS", JSON.stringify(trashRecords));
-        localStorage.setItem("IFTU_BRANCH_LIST", JSON.stringify(branchesList));
-        localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-
-        populateBranchDropdowns();
-        updateBranchFilterUI();
-        filterSalesTable();
-        renderTrashTable();
-        alert("✅ Data restored successfully!");
-      } catch (err) {
-        alert("❌ Invalid backup file format!");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  function addNewBranchWithPin() {
-    const newName = prompt("Enter new branch name:");
-    if (newName) {
-      if (!branchesList.includes(newName)) {
-        const pin = prompt(`Set PIN for ${newName}:`, "4321");
-        if (pin) {
-          branchesList.push(newName);
-          branchPINs[newName] = pin;
-          localStorage.setItem("IFTU_BRANCH_LIST", JSON.stringify(branchesList));
-          localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-          populateBranchDropdowns();
-          updateBranchFilterUI();
-          alert(`✅ Branch ${newName} added successfully!`);
-        }
-      } else {
-        alert("⚠️ Branch already exists!");
-      }
-    }
-  }
-
-  function deleteSelectedBranchWithPin() {
-    const sel = document.getElementById("branchFilter").value;
-    if (sel === "ALL" || sel === "MY_BRANCH" || sel === MAIN_BRANCH_NAME) {
-      alert("⚠️ Cannot delete Main Branch or special filter view!");
-      return;
-    }
-    if (confirm(`Are you sure you want to delete branch: ${sel}?`)) {
-      branchesList = branchesList.filter(b => b !== sel);
-      delete branchPINs[sel];
-      localStorage.setItem("IFTU_BRANCH_LIST", JSON.stringify(branchesList));
-      localStorage.setItem("IFTU_BRANCH_PINS", JSON.stringify(branchPINs));
-      populateBranchDropdowns();
-      updateBranchFilterUI();
-      filterSalesTable();
-      alert("✅ Branch deleted successfully!");
-    }
-  }
-
-  function restartQrScanner() {
-    alert("Camera restarted.");
-  }
-</script>
-
-</body>
-</html>
+          <button class="btn btn-sm btn-success" onclick="restoreFromTrash('${rec.id}')">Restore</button>
+    
